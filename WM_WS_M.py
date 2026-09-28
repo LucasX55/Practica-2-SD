@@ -103,6 +103,22 @@ if  (len(sys.argv) == 5):
         central_socket.connect(ADDR_CENTARLITA)
         print (f"Establecida conexión en [{ADDR_CENTARLITA}]")
 
+        auth_msg = f" <STX><DATA><ETX><LRC>"
+        print("Envio a la Central: ",auth_msg)
+        send(central_socket,auth_msg)
+        
+    except Exception as e:
+            print(f"No se entrar a la central")
+            sys.exit(1)
 
-        send(central_socket,msg)
 
+
+    server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    ADDR_ESCOLTA = ('0.0.0.0', PUERTO_ESCOLTA)
+    server_socket.bind(ADDR_ESCOLTA)
+    
+    print(f"Iniciando Monitor {id}")
+    start(server_socket, central_socket,id,ADDR_ESCOLTA)
+    
+else:
+    print("Error")
