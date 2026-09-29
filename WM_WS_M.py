@@ -20,7 +20,7 @@ def send(socket,msg):
     
 def fuga(central_socket, id):
     
-    msg = f" <STX><DATA><ETX><LRC>"
+    msg = f"<STX>Fuga: #{id}<ETX><LRC>"
     print(f"[{id}] Envio de averia a Central",msg)    #Si el Engine falla o se desconecta se lo comunica a central
     try:
         send(central_socket,msg)
@@ -35,7 +35,7 @@ def com_engine(conn, addr,central_socket, id):
     
     while connected:
         try:
-            ping_msg= f" <STX><DATA><ETX><LRC>"
+            ping_msg= f"<STX>STATUS #{id}<ETX><LRC>"
             send(conn, ping_msg)
             
             msg_length_data= conn.recv(HEADER).decode(FORMAT)
@@ -103,7 +103,7 @@ if  (len(sys.argv) == 5):
         central_socket.connect(ADDR_CENTARLITA)
         print (f"Establecida conexión en [{ADDR_CENTARLITA}]")
 
-        auth_msg = f" <STX><DATA><ETX><LRC>"
+        auth_msg = f"<STX>AUTENTIFICADOR: #{WATERSTATION_ID}<ETX><LRC>"
         print("Envio a la Central: ",auth_msg)
         send(central_socket,auth_msg)
         
@@ -117,8 +117,8 @@ if  (len(sys.argv) == 5):
     ADDR_ESCOLTA = ('0.0.0.0', PUERTO_ESCOLTA)
     server_socket.bind(ADDR_ESCOLTA)
     
-    print(f"Iniciando Monitor {id}")
-    start(server_socket, central_socket,id,ADDR_ESCOLTA)
+    print(f"Iniciando Monitor {WATERSTATION_ID}")
+    start(server_socket, central_socket,WATERSTATION_ID,ADDR_ESCOLTA)
     
 else:
     print("Error")
