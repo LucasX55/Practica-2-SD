@@ -6,6 +6,7 @@ import time
 HEADER = 64
 FORMAT = 'utf-8'
 
+estado_actual= "OK"
 
 def send(cliente_socket, msg):
     message = msg.encode(FORMAT)
@@ -22,7 +23,7 @@ def escuchar_fuga():
     print(f"Pon F y pulsa ENTER para simular una fuga")
     while True:
         tecla = input()
-        if tecla == "F":
+        if tecla.upper() == "F":
             estado_actual = "KO"
             print("Se ha producido una fuga. Se enviará el mensaje al monitor")
             break
