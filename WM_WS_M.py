@@ -2,7 +2,6 @@ import socket
 import sys
 import threading
 import time
-from kafka import KafkaConsumer,KafkaProducer
 import os
 import json
 
@@ -35,10 +34,10 @@ def com_engine(conn, addr,central_socket, id_ws):
             send_message(conn, ping_msg)
             
             msg= recv_message(conn)     
-            print(f"[{id_ws}] Fuga o averia detectada")
+            print(f"[{id_ws}] Respuesta de Engine: {msg}")
 
             if "KO" in msg:
-                print(f"[{id}] Fuga o avería detectada")
+                print(f"[{id_ws}] Fuga o avería detectada")
                 fuga(central_socket,id_ws)
                 connected= False
 
@@ -92,7 +91,7 @@ if  (len(sys.argv) == 6):
         central_socket.connect(ADDR_CENTARLITA)
         print (f"Establecida conexión en [{ADDR_CENTARLITA}]")
 
-        auth_msg = f"AUTENTIFICADOR#{WATERSTATION_ID},{UBICACION}"
+        auth_msg = f"AUTENTICAR#{WATERSTATION_ID}#{UBICACION}"
         print("Envio a la Central: ",auth_msg)
         send_message(central_socket,auth_msg)
         respuesta=recv_message(central_socket)

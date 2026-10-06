@@ -49,13 +49,13 @@ def productor(ip_kafka,puerto_kafka,st_id):
     global regando,volumen_acumulado,estado_actual
     productor=KafkaProducer(
         bootstrap_servers= [f"{ip_kafka}:{puerto_kafka}"],
-        value_serializer= lambda x:json.loads(x).encode('utf-8')
+        value_serializer= lambda x:json.dumps(x).encode('utf-8')
     ) 
     caudal=10.0/60
     while True:
         if regando and estado_actual == 'OK':
             volumen_acumulado +=caudal
-            datos={"id_ws": st_id, "caudal": 10.0,"volumen acumulado ": round(volumen_acumulado,2)}
+            datos={"id_ws": st_id, "caudal": 10.0,"volumen_acumulado": round(volumen_acumulado,2)}
             productor.send("wm_telemetria", value=datos)
             
         time.sleep(1)
@@ -64,10 +64,10 @@ def productor(ip_kafka,puerto_kafka,st_id):
 def consumidor(ip_kafka,puerto_kafka,st_id):
     global regando,volumen_acumulado,estado_actual
     consumidor=KafkaConsumer(
-        f'wm_ordenes{st_id}',
-        bootstrap_servers= [f"{ip_kafka}{puerto_kafka}"],
+        f'wm_ordenes_{st_id}',
+        bootstrap_servers= [f"{ip_kafka}:{puerto_kafka}"],
         value_deserializer= lambda x:json.loads(x.decode('utf-8')),
-        offset_reset='latest'
+        auto_offset_reset='latest'
     )
     
     for mensaje in consumidor:
