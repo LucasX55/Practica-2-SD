@@ -31,6 +31,11 @@ class Database:
                 );
             """)
 
+            try:
+                self.conn.execute("ALTER TABLE stations ADD COLUMN status TEXT DEFAULT 'DSESCONECTADA'")
+            except sqlite3.OperationalError:
+                pass
+
 
     def _ejecutar (self, sql, args=()):
         with self.lock, self.conn:
@@ -69,3 +74,5 @@ class Database:
     def get_irrigations(self):
         return self._consultar("SELECT * FROM irrigations ORDER BY id")
 
+    def set_status(self, st_id, status):
+        self._ejecutar("UPDATE stations SET status = ? WHERE id = ?", (status, st_id))
