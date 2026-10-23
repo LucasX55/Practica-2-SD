@@ -137,6 +137,18 @@ def atender_monitor(conn,addr):
         conn.close()
         print (f"[Central]{addr} desconectado  ")
 
+def interrumpir(st_id, motivo):
+    with candado:
+        est = estaciones.get(st_id)
+        if est is None or est.riego is None or est.riego["interrumpido"]:
+            return
+        est.riego["interrumpido"] = True
+        riego = est.riego
+    log (f"{st_id} : riego interrumpido ({motivo}). Llevaba {round(riego['volumen'],2)} L")
+    k.enviar(productor, k.t_ordenes(st_id), {"accion": "DETENER", "motivo": motivo})
+    notificar(riego["operador"], st_id, {"estado": "INTERRUMPIDO", "motivo": motivo, "volumen": round(riego["volumen"],2)})
+
+
 
 
 def main ():
