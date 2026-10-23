@@ -145,6 +145,19 @@ def atender_monitor(conn,addr):
         conn.close()
         log(f"{addr} desconectado")
 
+
+def notificar(op_id, st_id, datos):
+    datos[id_ws]= st_id
+    if op_id == "CENTRAL":
+        return
+
+    if op_id == "MANUAL":
+        if datos["estado"]== "DENEGADO":
+            k.enviar(productor, k.t_ordenes(st_id), {"accion": "DENEGADO", "motivo": datos["motivo"]})
+        return
+    k.enviar(productor, k.t_respuestas(op_id), datos)
+
+
 def interrumpir(st_id, motivo):
     with candado:
         est = estaciones.get(st_id)
