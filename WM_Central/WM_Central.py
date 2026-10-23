@@ -86,21 +86,23 @@ def desconectar(st_id):
         return
     with candado:
         est = estaciones.get(st_id)    
-        if est:
-            est.conectada = False
-            est.token = None
-            print(f"[Central] Estación {st_id} desconectada")
-
+        if est is None:
+            return
+        est.conectada = False
+    log(f"Estacion {st_id} desconectada")
+    interrumpir(st_id, "DESCONECTADA")
 
 
 def cambiar_fuga(st_id, hay_fuga):
     with candado:
         est = estaciones.get(st_id)
         est.fuga = hay_fuga
+        estado = est.estado()
         if hay_fuga:
-            print(f"[Central] FUGA detectada en estación {st_id} Estado {est.estado()}")
+            log(f"FUGA/averia en estacion {st_id}. Estado {estado}")
+            interrumpir(st_id, "FUGA")
         else:
-            print(f"[Central] FUGA resuelta en estación {st_id} Estado {est.estado()}")
+            log(f"Averia resuelta en estacion {st_id}. Estado {estado}")
     return "OK"
 
 
