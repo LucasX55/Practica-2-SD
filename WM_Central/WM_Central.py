@@ -2,17 +2,25 @@ import os
 import socket
 import threading
 import sys
-import uuid
+import time
+import json
+
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from common.protocol import recv_message, send_message, ConnectionClosed
-
 from common.database import Database
-from common.modelo import Station
+from common.modelo import Station, DISPONIBLE, REGANDO, FUGA, FUERA_DE_SERVICIO, DESCONECTADA
+from common import kafka_utils as k
 
 db = Database(os.environ.get("WM_DB", "wm_central.db"))
+TIMEOUT_MONITOR = float(os.environ.get("WM_TIMEOUT_MONITOR", 10))
 estaciones = {}
 candado = threading.Lock()
+
+SERVIDOR_KAFKA = None
+producer = None
+mensajes = []
 
 
 
@@ -22,7 +30,24 @@ def cargar_estaciones():
     for fila in db.get_stations():
         est = Station(fila["id"], fila["location"], bool(fila["blocked"]))
         estaciones[fila["id"]] = est
-        print (f"[Central] Cargada de la BD: {est.id} en {est.ubicacion} "f"-> {est.estado()} (bloqueada={est.bloqueada})")
+        log(f"Cargada desde la BD: {est.id} en {est.ubicacion} -> {est.estado()} (bloqueada={est.bloqueada})")
+        for fila in db.get_active():
+            est = estaciones.get(fila["station"])
+            if est:
+                est.riego = {"operador": fila["operator"], "duracion_s": fila["duration_s"], "inicio": fila["started_at"], "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
+                log(f"Riego en curso recuperao de la BD: {est.id} ({fila['operator']}) ")                                                              
+
+
+def orden_natural(st_id):
+    return(len(st_id), st_id)
+
+
+def log(texto):
+    hora = time.strftime("%H:%M:%S")
+    print (f"[Central {hora}] {texto}", flush=True)
+    mensajes.append(f"[{hora}] {texto}")
+    if len(mensajes) > 10:
+        mensajes.pop(0)
 
 
 def autenticar(st_id, ubicacion):
