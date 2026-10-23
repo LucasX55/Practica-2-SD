@@ -37,6 +37,18 @@ def cargar_estaciones():
                 est.riego = {"operador": fila["operator"], "duracion_s": fila["duration_s"], "inicio": fila["started_at"], "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
                 log(f"Riego en curso recuperao de la BD: {est.id} ({fila['operator']}) ")                                                              
 
+def registrar(st_id, ubicacion):
+    with candado:
+        est = estaciones.get(st.id)
+        if est is None:
+            estaciones[st_id] = Station(st_id, ubicacion)
+            db.add_station(st_id, ubicacion)
+            log(f"Nueva estación registrada: {st_id} en {ubicacion}")
+        else:
+            est.ubicacion = ubicacion.db.set_location(st_id, ubicacion)
+            db.set_location(st_id, ubicacion)
+            log(f"Estación {st_id} ya registrada, ubicación: {ubicacion}")
+    return "OK"
 
 def orden_natural(st_id):
     return(len(st_id), st_id)
