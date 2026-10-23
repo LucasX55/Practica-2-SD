@@ -62,21 +62,19 @@ def log(texto):
         mensajes.pop(0)
 
 
-def autenticar(st_id, ubicacion):
+def autenticar(st_id):
     with candado:
         est = estaciones.get(st_id)
         if est is None:
-            est = Station(st_id, ubicacion)
-            estaciones[st_id] = est
-            db.add_station(st_id, ubicacion)
-            print(f"[Central] Nueva estación: {st_id} en {ubicacion}")
-        elif est.conectada:
-            print(f"[Central] Autenticación fallida: estación {st_id} ya conectada ")
+            log(f"Autentificacion denegada: estacion {st_id} no registrada")
+            return "KO#estacion no registrada"
+
+        if est.conectada:
+            log(f"Autetificacion denegada: estacion {st_id} ya conectada")
             return "KO#estacion ya conectada"
-        est.token = uuid.uuid4().hex[:12]
         est.conectada = True
-        print(f"[Central] Estación {st_id} autentificada")
-        return f"OK#{est.token}"
+        log(f"Estación {st_id} autentificada")
+        return "OK"
 
 
 
