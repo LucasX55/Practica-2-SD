@@ -108,36 +108,42 @@ def cambiar_fuga(st_id, hay_fuga):
 
 
 def atender_monitor(conn,addr):
-    """Se eecuta en un hilo: atiendo a un cliente conectadoo""" 
-    print(f"[Central] Conectado a {addr}")
+    """Se eecuta en un hilo: atiendo a un cliente conectado""" 
+    log(f"Conectado a {addr}")
+    conn.settimeout(TIMEOUT_MONITOR)
     st_id = None
     try:
         while True:
             mensaje = recv_message(conn)
-            print(f"[Central] Recibido: {mensaje}")
             partes = mensaje.split("#")
-            if partes[0] == "AUTENTICAR" and len(partes) >= 3:
+            if partes[0] != "PING":
+                log(f"Recibido: {mensaje}")
+            if partes[0] == "REGISTRAR" and len(partes) >= 3:
+                respuesta = registrar(partes[1], partes[2])
+            elif partes[0] == "AUTENTICAR" and len(partes) >= 2:
                 if st_id is not None:
                     respuesta = "KO#ya autentificado"
                 else:
-                    respuesta = autenticar(partes[1], partes[2])
-                    if respuesta.startswith("OK"):
-                
+                    respuesta = autenticar(partes[1])
+                    if respuesta == "OK":
                         st_id = partes[1]
             elif partes[0] == "FUGA" and st_id and len(partes) >=2:
                 respuesta = cambiar_fuga(st_id, True) if partes[1] == st_id else "KO#id no coincide"
             elif partes[0] == "RESUELTA" and st_id and len(partes) >=2:
                 respuesta = cambiar_fuga(st_id, False) if partes[1] == st_id else "KO#id no coincide"
+            elif partes[0] == "PING" and st_id:
+                respuesta = "OK"
             else:
                 respuesta = "KO#mensaje no valido"
             send_message(conn, respuesta)
-            
+    except socket.timeout:
+        log(f"{st_id}: no llegan latidos del monitor")      
     except (ConnectionClosed, OSError) :
         pass
     finally:
         desconectar(st_id)
         conn.close()
-        print (f"[Central]{addr} desconectado  ")
+        log(f"{addr} desconectado")
 
 def interrumpir(st_id, motivo):
     with candado:
