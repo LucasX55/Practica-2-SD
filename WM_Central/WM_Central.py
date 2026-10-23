@@ -173,19 +173,28 @@ def interrumpir(st_id, motivo):
 
 
 def main ():
-    if len(sys.argv) != 3:
-        print("Uso: python WM_Central.py <puerto_sockets> <kafka_ip:puerto>")
+    global SERVIDOR_KAFKA, productor
+    if len(sys.argv) not in (3, 4):
+        print("Uso: python WM_Central.py <puerto_sockets> <kafka_ip:puerto>[puerto_web]")
         return
     puerto = int(sys.argv[1])
-    kafka = sys.argv[2]
+    SERVIDOR_KAFKA = sys.argv[2]
+    if len(sys.argv) == 4:
+        puerto_web = int(sys.argv[3])
+    else:
+        puerto_web = int(os.environ.get("PORT", 8080))
 
     cargar_estaciones()
+
+    k.crear_topics(SERVIDOR_KAFKA, [k.T_PETICIONES, k.T_TELEMETRIA, k.T_ESTADOS])
+
+    productor = k.crear_productor(SERVIDOR_KAFKA)
 
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     servidor.bind(("0.0.0.0", puerto))
     servidor.listen()
-    print(f"[Central] Escuchando en el puerto {puerto} ")
+    log(f" Escuchando en el puerto {puerto}")
 
     while True:
         conn, addr = servidor.accept()
