@@ -56,16 +56,18 @@ def enviar (productor, topic, datos):
 
 
 def crear_consumidor(servidor, nombre, topics):
-
+    if solo_nuevos:
+        grupo = f"{grupo}-{uuid.uuid4().hex[:6]}"
     consumidor = Consumer({
         "bootstrap.servers": servidor,
-        "group.id": f"{nombre}-{uuid.uuid4().hex[:6]}",
+        "group.id": grupo,
         "auto.offset.reset": "latest"
     })
     asignado = []
     consumidor.subscribe(topics, on_assign=lambda c, particiones: asignado.append(True))
-    while not asignado:
-        consumidor.poll(0.5)
+    if solo_nuevos:
+        while not asignado:
+            consumidor.poll(0.5)
     return consumidor
 
 
@@ -76,6 +78,6 @@ def leer(consumidor):
     if msg is None:
         return None, None
     if msg.error():
-      print(f"[Kafka] Aviso: {msg.error()}")
-      return None, None
+        print(f"[Kafka] Aviso: {msg.error()}")
+        return None, None
     return msg.topic(), json.loads(msg.value().decode("utf-8"))
