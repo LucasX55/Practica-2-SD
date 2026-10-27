@@ -39,7 +39,7 @@ def cargar_estaciones():
 
 def registrar(st_id, ubicacion):
     with candado:
-        est = estaciones.get(st.id)
+        est = estaciones.get(st_id)
         if est is None:
             estaciones[st_id] = Station(st_id, ubicacion)
             db.add_station(st_id, ubicacion)
@@ -146,8 +146,70 @@ def atender_monitor(conn,addr):
         log(f"{addr} desconectado")
 
 
+def procesar_peticion(p):
+    op_id = p.get("id_operaador")
+    st_id = p.get("id_ws")
+    if p.get("accion") == "PARAR":
+        parar(st_id, op_id)
+        return
+    duracion = int(p.get("duracion_s", 0))
+    texto_duracion = f"{duracion} s" if duracion > 0 else "sin límite"
+    log(f"Petición de {op_id}: regar {st_id} ({texto_duracion})")
+    notificar(op_id, st_id, {"estado": "RECIBIDA"})
+    motivo = None
+    with candado:
+        est = estaciones.get(st_id)
+        if op_id != "MANUAL" and op_id != "CENTRAL" and not db.operator_exists(op_id):
+            motivo = "operario no registrado"
+        elif est is None:
+            motivo = "la estación no existe"
+        elif est.estado() != DISPONIBLE:
+            motivo =f"ña estación está {est.estado()}"
+        elif duracion < 0:
+            motivo = "duracion no válida"
+        else:
+            est.riego = {"operador": op_id, "duracion_s": duracion, "inicio": time.time(), "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
+            db.add_active(st_id, op_id, est.riego["inicio"], duracion)
+    if motivo:
+        log(f"DENEGADA petición de {op_id} en {st_id}: {motivo}")
+        notificar(op_id, st_id, {"estado": "DENEGADO", "motivo": motivo})
+        return
+    log(f"AUTORIZADO riego de {op_id} en {st_id}")
+    notificar(op_id, st_id, {"estado": "AUTORIZADO"})
+    k.enviar(productor, k.t_ordenes(st_id), {"accion": "INICIAR", "id_operador": op_id, "duracion_s": duracion})
+
+
+def parar(st_id, quien):
+    # Para un riego en marcha. Un operario solo puede parar el suyo
+    with candado:
+        est = estaciones.get(st_id)
+        riego = est.riego if est else None
+    if riego is None:
+        log(f"{quien} quiere parar {st_id}, pero no está regando")
+        notificar(quien, st_id, {"estado": "DENEGADO", "motivo": "la estación no está regando"})
+        return
+    if quien != "CENTRAL" and quien != riego["operador"]:
+        log(f"{quien} quiere parar {st_id}, pero el riego es de {riego['operador']}")
+        notificar(quien, st_id, {"estado": "DENEGADO", "motivo": "ese riego no es tuyo"})
+        return
+    log(f"{st_id}: {quien} para el riego")
+    k.enviar(productor, k.t_ordenes(st_id), {"accion": "DETENER", "motivo": f"PARADO_POR_{quien}"})
+
+def escuchar_peticiones():
+    """Se ejecuta en un hilo: peticiones de riego. Solo las nuevas: si la central estaba caida no se admiten"""
+    consumidor = k.crear_consumidor(SERVIDOR_KAFKA, "central-peticiones", [k.T_PETICIONES])
+    while True:
+        topic, datos = k.leer(consumidor)
+        if datos is None:
+            continue
+        try:
+            procesar_peticion(datos)
+        except Exception as e:
+            log(f"Petición no válida {datos}: {e}")   # un mensaje malo no tumba el hilo
+
+
 def notificar(op_id, st_id, datos):
-    datos[id_ws]= st_id
+    datos["id_ws"]= st_id
     if op_id == "CENTRAL":
         return
 
