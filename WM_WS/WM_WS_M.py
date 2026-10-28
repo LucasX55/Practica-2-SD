@@ -31,7 +31,7 @@ def conectar_central():
             central_socket.connect(ADDR_CENTARLITA)
             print(f"Establecida conexion con {ADDR_CENTARLITA}")
 
-            regmeg= f"REGISTRAR#{WATERSTATION_ID}{UBICACION}"
+            regmeg= f"REGISTRAR#{WATERSTATION_ID}#{UBICACION}"
             print("Envio a la Central: ",regmeg)
             send_message(central_socket,regmeg)
             print(f"Respuesta: {recv_message(central_socket)}")
@@ -65,7 +65,7 @@ def enviar_central(msg):
                 return recv_message(central_socket)
 
             except (Exception, ConnectionClosed) as e:
-                print(f"Error al enviar mensaje a la central: {e}")
+                print(f"Imposible conectar con WM_Central: {e}")
                 conectar_central()
 
 def fuga(id_ws):
