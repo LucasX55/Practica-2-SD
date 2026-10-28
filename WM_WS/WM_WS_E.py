@@ -78,7 +78,7 @@ def escuchar_teclado():
 
 
 def escuchar_monitor(cliente_socket):
-    global estado_actual
+    global estado_actual, monitor_ok
     connected = True
     cliente_socket.settimeout(TIMEOUT_MONITOR)
 
@@ -102,7 +102,7 @@ def escuchar_monitor(cliente_socket):
 
 
 def productor(st_id):
-
+    global volumen_acumulado
     while True:
         if regando and estado_actual == 'OK':
             if duracion_riego > 0 and (time.time() - inicio_riego) >= duracion_riego:
@@ -117,7 +117,7 @@ def productor(st_id):
 def consumidor(st_id):
     global regando, volumen_acumulado, duracion_riego, inicio_riego
     topic_ordenes= k.t_ordenes(st_id)
-    k.crear_topics(KAFKA, f"engine-{st_id}", [topic_ordenes])
+    k.crear_topics(KAFKA, [topic_ordenes])
 
     consumidor= k.crear_consumidor(KAFKA, f"engine-{st_id}", [topic_ordenes])
 
@@ -129,14 +129,14 @@ def consumidor(st_id):
 
         if orden.get("accion") == "INICIAR" and estado_actual=="OK" and not regando:
             volumen_acumulado= 0.0
-            duracion_riego= orden.get("duracion_s",0)
+            duracion_riego= int(orden.get("duracion_s",0))
             inicio_riego= time.time()
             regando= True
             print(f"Valvula abierta")
             evento({"tipo": "INICIADO", "id_operador": orden.get("id_operador")})
 
         elif orden.get("accion") == "INICIAR":
-            evento({"tipo": "FINALIZADO", "motivo": "AVERIA", "volumen": 0.0, "duracion": 0})
+            evento({"tipo": "FINALIZADO", "motivo": "AVERIA", "volumen": 0.0, "duracion_s": 0})
 
         elif orden.get("accion")== "DETENER": 
             cerrar_valvula(orden.get("motivo","ORDEN_CENTRAL"))
@@ -155,29 +155,33 @@ if  (len(sys.argv) in (6,7)):
     CAUDAL= float(sys.argv[6]) if len(sys.argv) == 7 else 10.0
     KAFKA= f"{IP_KAFKA}:{PUERTO_KAFKA}"
 
+    productor_kafka= k.crear_productor(KAFKA)
+    evento({"tipo": "ARRANQUE"})
+
     threading.Thread(target=escuchar_teclado, daemon=True).start()
-    threading.Thread(target=productor,args=( ST_ID), daemon=True).start()
-    threading.Thread(target=consumidor,args=(ST_ID), daemon=True).start()
+    threading.Thread(target=productor,args=(ST_ID,), daemon=True).start()
+    threading.Thread(target=consumidor,args=(ST_ID,), daemon=True).start()
 
 
 
     ADDR_MONITOR = (IP_MONITOR, PUERTO_MONITOR)
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    try:
-        client_socket.connect(ADDR_MONITOR)
-        print (f"Establecida conexión en [{ADDR_MONITOR}]")
+    while True:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            client_socket.connect(ADDR_MONITOR)
+            print (f"Establecida conexión en [{ADDR_MONITOR}]")
 
-        escuchar_monitor(client_socket)
-        
-    except Exception as e:
-        print(f"No se pudo conectar al monitor: {e}")
+            escuchar_monitor(client_socket)
+            
+        except Exception as e:
+            print(f"No se pudo conectar al monitor: {e}")
 
-    finally:
-        client_socket.close()
-        print("Conexión con el monitor cerrada.")
+        finally:
+            client_socket.close()
+            print("Conexión con el monitor cerrada.")
 
-    time.sleep(REINTENTO)
+        time.sleep(REINTENTO)
     
 else:
     print("Uso: python WM_WS_E.py <ip_kafka> <puerto_kafka> <ip_monitor> <puerto_monitor> <id_estacion> [caudal_l_min]")
