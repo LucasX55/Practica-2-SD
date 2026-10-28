@@ -29,10 +29,16 @@ class Database:
                     volume_l REAL,
                     reason TEXT
                 );
+                CREATE TABLE IF NOT EXISTS active_irrigations(
+                    station TEXT PRIMARY KEY,
+                    operator TEXT,
+                    started_at REAL,
+                    duration_s REAL
+                );
             """)
 
             try:
-                self.conn.execute("ALTER TABLE stations ADD COLUMN status TEXT DEFAULT 'DSESCONECTADA'")
+                self.conn.execute("ALTER TABLE stations ADD COLUMN status TEXT DEFAULT 'DESCONECTADA'")
             except sqlite3.OperationalError:
                 pass
 
@@ -58,11 +64,26 @@ class Database:
     def add_station(self, st_id, location):
         self._ejecutar("INSERT OR IGNORE INTO stations(id, location) VALUES(?, ?)", (st_id, location))
 
+    def set_location(self, st_id, location):
+        self._ejecutar("UPDATE stations SET location = ? WHERE id = ?", (location, st_id))
+
     def get_stations(self):
         return self._consultar("SELECT id, location, blocked FROM stations ORDER BY id")
 
     def set_blocked(self, st_id, blocked):
         self._ejecutar("UPDATE stations SET blocked = ? WHERE id = ?", (1 if blocked else 0, st_id))
+    # ---- riegos en curso ----
+    def add_active(self, station, operator, started_at, duration_s):
+        self._ejecutar(
+            "INSERT OR REPLACE INTO active_irrigations(station, operator, started_at, duration_s) "
+            "VALUES(?, ?, ?, ?)",
+            (station, operator, started_at, duration_s))
+
+    def delete_active(self, station):
+        self._ejecutar("DELETE FROM active_irrigations WHERE station = ?", (station,))
+
+    def get_active(self):
+        return self._consultar("SELECT station, operator, started_at, duration_s FROM active_irrigations")
 
     # ---- histórico de riegos ----
     def add_irrigation(self, station, operator, duration_s, volume_l, reason):

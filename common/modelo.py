@@ -14,7 +14,6 @@ class Station:
         self.conectada = False #monitor conectado?
         self.fuga = False #Hay fduga?
         self.riego = None #se esta regando?
-        self.token = None 
 
 
     def estado(self):
