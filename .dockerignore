@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.db
+estado_*.json
+.git/
+.DS_Store
+pruebas/
