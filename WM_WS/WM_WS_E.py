@@ -33,7 +33,7 @@ def cerrar_valvula(motivo):
     regando=False
     duracion= round(time.time()-inicio_riego,1)
     print(f"Valvula cerrada ({motivo}). {round(volumen_acumulado,2)} L en {duracion} s")
-    evento({"tipo": "FINALIZADO", "motivo": motivo, "volumen": round(volumen_acumulado,2), "duracion": duracion})
+    evento({"tipo": "FINALIZADO", "motivo": motivo, "volumen": round(volumen_acumulado,2), "duracion_s": duracion})
 
 
 
