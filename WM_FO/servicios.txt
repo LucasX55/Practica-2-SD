@@ -1,0 +1,3 @@
+# estacion,segundos
+ST1,5
+ST2,3
