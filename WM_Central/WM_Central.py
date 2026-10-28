@@ -208,6 +208,57 @@ def escuchar_peticiones():
             log(f"Petición no válida {datos}: {e}")   # un mensaje malo no tumba el hilo
 
 
+def procesar_evento(e):
+    st_id = e.get("id_ws")
+    tipo = e.get("tipo")
+    with candado:
+        est = estaciones.get(st_id)
+        if est is None or est.riego is None:
+            return   
+        riego = est.riego
+        if tipo == "TELEMETRIA":
+            riego["caudal"] = e.get("caudal", 0.0)
+            riego["volumen"] = e.get("volumen", 0.0)
+        op_id = riego["operador"]
+
+    if tipo == "INICIADO":
+        log(f"{st_id}: electroválvula abierta, riego en marcha ({op_id})")
+        notificar(op_id, st_id, {"estado": "INICIADO"})
+    elif tipo == "TELEMETRIA":
+        notificar(op_id, st_id, {"estado": "REGANDO", "caudal": e.get("caudal"), "volumen": e.get("volumen")})
+    elif tipo == "FINALIZADO":
+        finalizar_riego(st_id, e.get("motivo", "FIN"), e.get("volumen", 0.0), e.get("duracion_s", 0.0))
+    elif tipo == "ARRANQUE":
+        finalizar_riego(st_id, "ENGINE_REINICIADO", round(riego["volumen"], 2), round(time.time() - riego["inicio"], 1))
+
+
+
+def finalizar_riego(st_id, motivo, volumen, duracion):
+    with candado:
+        est = estaciones.get(st_id)
+        if est is None or est.riego is None:
+            return
+        riego = est.riego
+        est.riego = None
+    db.delete_active(st_id)
+    db.add_irrigation(st_id, riego["operador"], duracion, volumen, motivo)
+    log(f"{st_id}: riego terminado ({motivo}). {volumen} L en {duracion} s")
+    notificar(riego["operador"], st_id, {"estado": "FINALIZADO", "motivo": motivo, "volumen_total": volumen, "duracion_s": duracion})
+
+
+def escuchar_eventos():
+    """Se ejecuta en un hilo: eventos de los engines. Grupo fijo: al volver la central lee lo que llego mientras estaba caida"""
+    consumidor = k.crear_consumidor(SERVIDOR_KAFKA, "central-eventos", [k.T_TELEMETRIA], solo_nuevos=False)
+    while True:
+        topic, datos = k.leer(consumidor)
+        if datos is None:
+            continue
+        try:
+            procesar_evento(datos)
+        except Exception as e:
+            log(f"Evento no válido {datos}: {e}")
+
+
 def notificar(op_id, st_id, datos):
     datos["id_ws"]= st_id
     if op_id == "CENTRAL":
