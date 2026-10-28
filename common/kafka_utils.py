@@ -10,7 +10,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 #nombre de los topics
 T_PETICIONES = "wm_peticiones_riego" #FO O ENGINE -> CENTRAL
 T_TELEMETRIA = "wm_telemetria" #ENGINE -> CENTRAL
-T_ESTADOS = "wm_estados_estaciones" #CEntral -> FO
+T_ESTADOS = "wm_estado_estaciones" #CEntral -> FO
 
 def t_ordenes(st_id):
     #central -> engina de una estacion
@@ -55,7 +55,7 @@ def enviar (productor, topic, datos):
     productor.poll(0)  
 
 
-def crear_consumidor(servidor, nombre, topics):
+def crear_consumidor(servidor, nombre, topics, solo_nuevos=True):
     if solo_nuevos:
         grupo = f"{grupo}-{uuid.uuid4().hex[:6]}"
     consumidor = Consumer({

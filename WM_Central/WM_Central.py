@@ -3,16 +3,13 @@ import socket
 import threading
 import sys
 import time
-import json
-import panel_web
-
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from common.protocol import recv_message, send_message, ConnectionClosed
 from common.database import Database
 from common.modelo import Station, DISPONIBLE, REGANDO, FUGA, FUERA_DE_SERVICIO, DESCONECTADA
 from common import kafka_utils as k
+import panel_web
 
 db = Database(os.environ.get("WM_DB", "wm_central.db"))
 TIMEOUT_MONITOR = float(os.environ.get("WM_TIMEOUT_MONITOR", 10))
@@ -20,7 +17,7 @@ estaciones = {}
 candado = threading.Lock()
 
 SERVIDOR_KAFKA = None
-producer = None
+productor = None
 mensajes = []
 
 AYUDA = ("Órdenes: iniciar <id|todas> [segundos] | parar <id|todas> | bloquear <id|todas> | ""activar <id|todas> | alta <operario> [nombre] | altas <numero>")
@@ -39,11 +36,11 @@ def cargar_estaciones():
         est = Station(fila["id"], fila["location"], bool(fila["blocked"]))
         estaciones[fila["id"]] = est
         log(f"Cargada desde la BD: {est.id} en {est.ubicacion} -> {est.estado()} (bloqueada={est.bloqueada})")
-        for fila in db.get_active():
-            est = estaciones.get(fila["station"])
-            if est:
-                est.riego = {"operador": fila["operator"], "duracion_s": fila["duration_s"], "inicio": fila["started_at"], "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
-                log(f"Riego en curso recuperao de la BD: {est.id} ({fila['operator']}) ")                                                              
+    for fila in db.get_active():
+        est = estaciones.get(fila["station"])
+        if est:
+            est.riego = {"operador": fila["operator"], "duracion_s": fila["duration_s"], "inicio": fila["started_at"], "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
+            log(f"Riego en curso recuperao de la BD: {est.id} ({fila['operator']}) ")                                                              
 
 def registrar(st_id, ubicacion):
     with candado:
@@ -53,7 +50,7 @@ def registrar(st_id, ubicacion):
             db.add_station(st_id, ubicacion)
             log(f"Nueva estación registrada: {st_id} en {ubicacion}")
         else:
-            est.ubicacion = ubicacion.db.set_location(st_id, ubicacion)
+            est.ubicacion = ubicacion
             db.set_location(st_id, ubicacion)
             log(f"Estación {st_id} ya registrada, ubicación: {ubicacion}")
     return "OK"
@@ -78,7 +75,7 @@ def autenticar(st_id):
             return "KO#estacion no registrada"
 
         if est.conectada:
-            log(f"Autetificacion denegada: estacion {st_id} ya conectada")
+            log(f"Autentificacion denegada: estacion {st_id} ya conectada")
             return "KO#estacion ya conectada"
         est.conectada = True
         log(f"Estación {st_id} autentificada")
@@ -106,17 +103,17 @@ def cambiar_fuga(st_id, hay_fuga):
         est = estaciones.get(st_id)
         est.fuga = hay_fuga
         estado = est.estado()
-        if hay_fuga:
-            log(f"FUGA/averia en estacion {st_id}. Estado {estado}")
-            interrumpir(st_id, "FUGA")
-        else:
-            log(f"Averia resuelta en estacion {st_id}. Estado {estado}")
+    if hay_fuga:
+        log(f"FUGA/averia en estacion {st_id}. Estado {estado}")
+        interrumpir(st_id, "FUGA")
+    else:
+        log(f"Averia resuelta en estacion {st_id}. Estado {estado}")
     return "OK"
 
 
 
 def atender_monitor(conn,addr):
-    """Se eecuta en un hilo: atiendo a un cliente conectado""" 
+    """Se ejecuta en un hilo: atiendo a un cliente conectado""" 
     log(f"Conectado a {addr}")
     conn.settimeout(TIMEOUT_MONITOR)
     st_id = None
@@ -155,7 +152,7 @@ def atender_monitor(conn,addr):
 
 
 def procesar_peticion(p):
-    op_id = p.get("id_operaador")
+    op_id = p.get("id_operador")
     st_id = p.get("id_ws")
     if p.get("accion") == "PARAR":
         parar(st_id, op_id)
@@ -172,7 +169,7 @@ def procesar_peticion(p):
         elif est is None:
             motivo = "la estación no existe"
         elif est.estado() != DISPONIBLE:
-            motivo =f"ña estación está {est.estado()}"
+            motivo =f"la estación está {est.estado()}"
         elif duracion < 0:
             motivo = "duracion no válida"
         else:
@@ -423,6 +420,12 @@ def main ():
     k.crear_topics(SERVIDOR_KAFKA, [k.T_PETICIONES, k.T_TELEMETRIA, k.T_ESTADOS])
 
     productor = k.crear_productor(SERVIDOR_KAFKA)
+
+    threading.Thread(target=escuchar_peticiones, daemon=True).start()
+    threading.Thread(target=escuchar_eventos, daemon=True).start()
+    threading.Thread(target=bucle_estado, daemon=True).start()
+    log(f"Panel web en http://localhost:{puerto_web}")
+    threading.Thread(target=panel_web.arrancar, args=(puerto_web, foto, ejecutar_orden, mensajes), daemon=True).start()
 
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

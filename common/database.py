@@ -82,6 +82,9 @@ class Database:
     def delete_active(self, station):
         self._ejecutar("DELETE FROM active_irrigations WHERE station = ?", (station,))
 
+    def get_active(self):
+        return self._consultar("SELECT station, operator, started_at, duration_s FROM active_irrigations")
+
     # ---- histórico de riegos ----
     def add_irrigation(self, station, operator, duration_s, volume_l, reason):
         self._ejecutar(
