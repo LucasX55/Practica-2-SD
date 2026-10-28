@@ -22,6 +22,8 @@ SERVIDOR_KAFKA = None
 producer = None
 mensajes = []
 
+AYUDA = ("Órdenes: iniciar <id|todas> [segundos] | parar <id|todas> | bloquear <id|todas> | ""activar <id|todas> | alta <operario> [nombre] | altas <numero>")
+
 
 
 
@@ -194,6 +196,64 @@ def parar(st_id, quien):
         return
     log(f"{st_id}: {quien} para el riego")
     k.enviar(productor, k.t_ordenes(st_id), {"accion": "DETENER", "motivo": f"PARADO_POR_{quien}"})
+
+def bloquear(st_id, bloqueada):
+    with candado:
+        est = estaciones.get(st_id)
+        if est is None:
+            log(f"No existe la estación {st_id}")
+            return
+        est.bloqueada = bloqueada
+        regando = est.riego is not None
+    db.set_blocked(st_id, bloqueada)
+    if bloqueada:
+        log(f"{st_id} BLOQUEADA (fuera de servicio)")
+    else:
+        log(f"{st_id} ACTIVADA")
+    if bloqueada and regando:
+        k.enviar(productor, k.t_ordenes(st_id), {"accion": "DETENER", "motivo": "BLOQUEADA"})   
+
+
+def ejecutar_orden(linea):
+    partes = linea.split()
+    if len(partes) == 0:
+        return
+    orden = partes[0].lower()
+    if orden == "alta" and len(partes) >= 2:
+        nombre = partes[1]
+        if len(partes) > 2:
+            nombre = " ".join(partes[2:])
+        db.add_operator(partes[1], nombre)
+        log(f"Operario {partes[1]} ({nombre}) dado de alta")
+    elif orden == "altas" and len(partes) == 2 and partes[1].isdigit():
+        for i in range(1, int(partes[1]) + 1):   # OP1, OP2, ... OPn
+            db.add_operator(f"OP{i}", f"Operario {i}")
+        log(f"Operarios OP1 a OP{partes[1]} dados de alta")
+    elif orden in ("iniciar", "parar", "bloquear", "activar") and len(partes) >= 2:
+        if partes[1].lower() == "todas":
+            with candado:
+                ids = []
+                for st_id in sorted(estaciones.keys(), key=orden_natural):
+                    if orden != "parar" or estaciones[st_id].riego:   
+                        ids.append(st_id)
+        else:
+            ids = [partes[1]]
+        for st_id in ids:
+            if orden == "bloquear":
+                bloquear(st_id, True)
+            elif orden == "activar":
+                bloquear(st_id, False)
+            elif orden == "parar":
+                parar(st_id, "CENTRAL")
+            else:
+                segundos = 0   
+                if len(partes) > 2 and partes[2].isdigit():
+                    segundos = int(partes[2])
+                procesar_peticion({"id_operador": "CENTRAL", "id_ws": st_id, "duracion_s": segundos})
+    else:
+        log(AYUDA)
+
+
 
 def escuchar_peticiones():
     """Se ejecuta en un hilo: peticiones de riego. Solo las nuevas: si la central estaba caida no se admiten"""
