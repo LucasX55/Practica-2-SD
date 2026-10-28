@@ -1,5 +1,4 @@
 import os
-import socket
 import sys
 import threading
 import time
@@ -8,8 +7,6 @@ import json
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from common import kafka_utils as k
 
-FORMAT= 'utf-8'
-riego_activo = False
 
 TIEMPO_CENTRAL= float(os.environ.get("WM_TIEMPO_CENTRAL", 5))
 
@@ -21,7 +18,7 @@ productor=None
 def consumidor(id_operador):
     global riego_activo
     
-    consumidor = k.crear_consumidor(KAFKA, f"fo_{id_operador}", [k.t_respuestas(id_operador)], solo_nuevos=False)
+    consumidor = k.crear_consumidor(KAFKA, f"fo-{id_operador}", [k.t_respuestas(id_operador)], solo_nuevos=False)
     
     
     print(f"[{id_operador}] Escuchando a la central")
@@ -39,7 +36,7 @@ def consumidor(id_operador):
 
 def escuchar_estados():
     global estaciones, central_caida
-    consumidor = k.crear_consumidor(KAFKA, "fo_estados", [k.T_ESTADOS])
+    consumidor = k.crear_consumidor(KAFKA, "fo-estados", [k.T_ESTADOS])
     ultimo= time.time()        
 
     while True:
@@ -66,7 +63,7 @@ def pedir_riego(id_operador, id_ws, segundos):
 
     peticion= {"id_operador":id_operador,"id_ws":id_ws,"duracion_s": segundos,"accion":"SOLICITAR"}
     print(f"[{id_operador}] Solicitando riego: {peticion}")
-    k.enviar(productor, k.t_PETICIONES, peticion)
+    k.enviar(productor, k.T_PETICIONES, peticion)
     riego_activo=True
     return True
 
@@ -77,7 +74,7 @@ def ver_estaciones():
 
     for s in estaciones:
         marca= " <- disponible" if s["estado"]=="DISPONIBLE" else ""
-        print(f" {s['id']:<6}{s['ubicacion']:<16}{s['estado']<18}{marca}")
+        print(f" {s['id']:<6}{s['ubicacion']:<16}{s['estado']:<18}{marca}")
 
 
 def procesar_fichero(id_operador, fichero):
@@ -133,7 +130,7 @@ def menu(id_operador):
 
         orden= partes[0].lower()
 
-        if orden == "pedir" and len(partes) > 2:
+        if orden == "pedir" and len(partes) >= 2:
             segundos = 0
 
             if len(partes) > 2 and partes[2].isdigit():
@@ -164,7 +161,7 @@ if  (len(sys.argv) in (4,5)):
 
     k.crear_topics(KAFKA, [k.t_respuestas(ID_OPERADOR), k.T_ESTADOS, k.T_PETICIONES])
     productor= k.crear_productor(KAFKA)
-    threading.Thread(target=consumidor,args=(ID_OPERADOR), daemon=True).start()
+    threading.Thread(target=consumidor,args=(ID_OPERADOR,), daemon=True).start()
     threading.Thread(target=escuchar_estados, daemon=True).start()
     time.sleep(1)
 
