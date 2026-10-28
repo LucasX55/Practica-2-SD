@@ -4,6 +4,7 @@ import threading
 import sys
 import time
 import json
+import panel_web
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -25,8 +26,13 @@ mensajes = []
 AYUDA = ("Órdenes: iniciar <id|todas> [segundos] | parar <id|todas> | bloquear <id|todas> | ""activar <id|todas> | alta <operario> [nombre] | altas <numero>")
 
 
+# Colores de la consola (codigos ANSI): fondo verde, verde parpadeando, rojo, naranja y gris
+COLORES = {DISPONIBLE: "\033[30;42m", REGANDO: "\033[5;30;42m", FUGA: "\033[97;41m", FUERA_DE_SERVICIO: "\033[30;48;5;208m", DESCONECTADA: "\033[30;47m"}
+
+RESET = "\033[0m"
 
 
+NOMBRES = {DISPONIBLE: "Available", REGANDO: "Watering", FUGA: "Leak", FUERA_DE_SERVICIO: "Out of Service", DESCONECTADA: "Disconnected"}
 
 def cargar_estaciones():
     for fila in db.get_stations():
@@ -342,6 +348,61 @@ def interrumpir(st_id, motivo):
     k.enviar(productor, k.t_ordenes(st_id), {"accion": "DETENER", "motivo": motivo})
     notificar(riego["operador"], st_id, {"estado": "INTERRUMPIDO", "motivo": motivo, "volumen": round(riego["volumen"],2)})
 
+
+def foto():
+    lista = []
+    with candado:
+        for st_id in sorted(estaciones.keys(), key=orden_natural):
+            est = estaciones[st_id]
+            fila = {"id": est.id, "ubicacion": est.ubicacion, "estado": est.estado(),
+                    "caudal": 0.0, "volumen": 0.0, "operario": ""}
+            if est.riego:
+                fila["caudal"] = est.riego["caudal"]
+                fila["volumen"] = round(est.riego["volumen"], 2)
+                fila["operario"] = est.riego["operador"]
+            lista.append(fila)
+    return lista
+
+
+
+def tabla_panel(lista, con_colores):
+   
+    lineas = [f"{'ID':<6}{'UBICACION':<16}{'ESTADO':^18}  {'L/MIN':>6}  {'LITROS':>7}  OPERARIO"]
+    for s in lista:
+        texto = f"{NOMBRES[s['estado']]:^18}"
+        if con_colores:
+            texto = COLORES[s["estado"]] + texto + RESET
+        lineas.append(f"{s['id']:<6}{s['ubicacion'][:15]:<16}{texto}  {s['caudal']:>6.1f}  {s['volumen']:>7.1f}  {s['operario']}")
+    return lineas
+
+
+def dibujar_panel(lista):
+   
+    salida = ["\033[2J\033[H" + "WM_Central · estaciones de riego (las órdenes, en el panel web)", ""]
+    salida += tabla_panel(lista, True)
+    salida += ["", "Últimos mensajes:"] + mensajes
+    print("\n".join(salida), flush=True)
+
+
+
+def bucle_estado():
+    """Se ejecuta en un hilo: cada segundo guarda los cambios de estado en la BD, avisa a los FO y muestra el panel"""
+    guardados = {}
+    en_terminal = sys.stdout.isatty()   
+    while True:
+        lista = foto()
+        cambios = False
+        for s in lista:
+            if guardados.get(s["id"]) != s["estado"]:
+                db.set_status(s["id"], s["estado"])
+                guardados[s["id"]] = s["estado"]
+                cambios = True
+        k.enviar(productor, k.T_ESTADOS, {"estaciones": lista})
+        if en_terminal:
+            dibujar_panel(lista)
+        elif cambios:   
+            print("\n".join(tabla_panel(lista, False)), flush=True)
+        time.sleep(1)
 
 
 
