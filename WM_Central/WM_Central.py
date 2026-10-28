@@ -40,7 +40,7 @@ def cargar_estaciones():
         est = estaciones.get(fila["station"])
         if est:
             est.riego = {"operador": fila["operator"], "duracion_s": fila["duration_s"], "inicio": fila["started_at"], "caudal": 0.0, "volumen": 0.0, "interrumpido": False}
-            log(f"Riego en curso recuperao de la BD: {est.id} ({fila['operator']}) ")                                                              
+            log(f"Riego en curso recuperado de la BD: {est.id} ({fila['operator']}) ")                                                              
 
 def registrar(st_id, ubicacion):
     with candado:

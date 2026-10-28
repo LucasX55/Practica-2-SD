@@ -55,7 +55,7 @@ def enviar (productor, topic, datos):
     productor.poll(0)  
 
 
-def crear_consumidor(servidor, nombre, topics, solo_nuevos=True):
+def crear_consumidor(servidor, grupo, topics, solo_nuevos=True):
     if solo_nuevos:
         grupo = f"{grupo}-{uuid.uuid4().hex[:6]}"
     consumidor = Consumer({
