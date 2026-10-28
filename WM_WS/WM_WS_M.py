@@ -13,7 +13,7 @@ LATIDO= float(os.environ.get("WM_LATIDO", 2))
 
 TIMEOUT_ENGINE = float(os.environ.get("WM_TIMEOUT_ENGINE", 3))
 
-TIMEOUT_CENTAL= float(os.environ.get("WM_TIMEOUT_CENTRAL", 10))
+TIMEOUT_CENTRAL= float(os.environ.get("WM_TIMEOUT_CENTRAL", 10))
 
 REINTENTO= float(os.environ.get("WM_REINTENTO",3))
 
@@ -27,11 +27,11 @@ def conectar_central():
     while True:
         try:
             central_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            central_socket.settimeout(TIMEOUT_CENTAL)
+            central_socket.settimeout(TIMEOUT_CENTRAL)
             central_socket.connect(ADDR_CENTARLITA)
             print(f"Establecida conexion con {ADDR_CENTARLITA}")
 
-            regmeg= f"REGISTRO#{WATERSTATION_ID}#{UBICACION}"
+            regmeg= f"REGISTRAR#{WATERSTATION_ID}{UBICACION}"
             print("Envio a la Central: ",regmeg)
             send_message(central_socket,regmeg)
             print(f"Respuesta: {recv_message(central_socket)}")
@@ -42,7 +42,7 @@ def conectar_central():
             respuesta=recv_message(central_socket)
             print(f"Respuesta: {respuesta}")
 
-            if "KO" in respuesta:
+            if "KO" not in respuesta:
                 if en_fuga:
                     send_message(central_socket,f"FUGA#{WATERSTATION_ID}")
                     recv_message(central_socket)
@@ -51,7 +51,7 @@ def conectar_central():
             central_socket.close()
 
         except (Exception, ConnectionClosed) as e:
-            print(f"Imposible conectar con la central: {e}")
+            print(f"Imposible conectar con WM_Central: {e}")
 
         print(f"Reintentando en {REINTENTO} segundos...")
         time.sleep(REINTENTO)
