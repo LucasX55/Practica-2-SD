@@ -19,7 +19,7 @@ fi
 #### 1. Esperar a que se pueda llegar a la Central y a Kafka (si la red los bloquea, se queda aqui)
 for PUERTO in 5050 9092 8080; do
   until timeout 3 bash -c "echo > /dev/tcp/$IP/$PUERTO" 2>/dev/null; do
-    echo "No llego a $IP:$PUERTO, reintentando... (comprueba la red: datos del movil)"
+    echo "No llego a $IP:$PUERTO, reintentando... (comprueba la red"
     sleep 3
   done
   echo "Puerto $PUERTO OK"
