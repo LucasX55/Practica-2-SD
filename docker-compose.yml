@@ -3,6 +3,7 @@ services:
     image: apache/kafka:latest
     hostname: broker
     container_name: broker
+    restart: unless-stopped
     ports:
       - 9092:9092
     environment:
@@ -25,6 +26,7 @@ services:
   central:
     build: .
     container_name: central
+    restart: unless-stopped
     depends_on:
       - broker
     ports:
