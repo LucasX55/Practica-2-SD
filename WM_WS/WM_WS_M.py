@@ -145,7 +145,7 @@ def start(server_socket,id,addr_escuchar):
     
     while True:
         conn, addr = server_socket.accept()
-        thread = threading.Thread(target=com_engine, args=(conn, addr,id))
+        thread = threading.Thread(target=com_engine, args=(conn, addr,id), daemon= True)
         thread.start()
 
         CONEX_ACTIVAS = threading.active_count()-1
