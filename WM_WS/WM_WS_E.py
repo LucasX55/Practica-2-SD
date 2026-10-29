@@ -89,8 +89,7 @@ def escuchar_monitor(cliente_socket):
             if "STATUS" in msg:
                 monitor_ok =True
                 send_message(cliente_socket, estado_actual)
-                if estado_actual == "KO":
-                    print ("Se ha producido una fuga")
+
 
 
         except (Exception, ConnectionClosed):
