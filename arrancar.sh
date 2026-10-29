@@ -18,8 +18,8 @@ fi
  
 #### 1. Esperar a que se pueda llegar a la Central y a Kafka (si la red los bloquea, se queda aqui)
 for PUERTO in 5050 9092 8080; do
-  until timeout 3 bash -c "echo > /dev/tcp/$IP/$PUERTO" 2>/dev/null; do
-    echo "No llego a $IP:$PUERTO, reintentando... (comprueba la red"
+  until nc -z -w 3 $IP $PUERTO 2>/dev/null || timeout 3 bash -c "echo > /dev/tcp/$IP/$PUERTO" 2>/dev/null; do
+    echo "No llego a $IP:$PUERTO, reintentando... (comprueba la red)"
     sleep 3
   done
   echo "Puerto $PUERTO OK"
@@ -52,3 +52,4 @@ curl -s -X POST --data "altas $ULTIMO_OP" http://$IP:8080/orden && echo "Operari
 sleep 10
 for i in $(seq $PRIMERA $ULTIMO_OP); do docker restart fo-op$i > /dev/null; done
 echo "Listo. Panel: http://$IP:8080   Operario: docker attach fo-op$PRIMERA"
+ 
