@@ -61,7 +61,9 @@ def crear_consumidor(servidor, grupo, topics, solo_nuevos=True):
     consumidor = Consumer({
         "bootstrap.servers": servidor,
         "group.id": grupo,
-        "auto.offset.reset": "latest"
+        "auto.offset.reset": "latest",
+        "session.timeout.ms": 10000,    
+        "heartbeat.interval.ms": 3000,
     })
     asignado = []
     consumidor.subscribe(topics, on_assign=lambda c, particiones: asignado.append(True))
