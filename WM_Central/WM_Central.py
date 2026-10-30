@@ -375,8 +375,7 @@ def tabla_panel(lista, con_colores):
 
 def dibujar_panel(lista):
    
-    salida = ["\033[2J\033[H" + "WM_Central · estaciones de riego (las órdenes, en el panel web)", ""]
-    salida += tabla_panel(lista, True)
+    salida = ["\033[2J\033[H" + "WM_Central · estaciones de riego (escribe una orden y pulsa Enter, o usa el panel web)", ""]    salida += tabla_panel(lista, True)
     salida += ["", "Últimos mensajes:"] + mensajes
     print("\n".join(salida), flush=True)
 
@@ -401,7 +400,14 @@ def bucle_estado():
             print("\n".join(tabla_panel(lista, False)), flush=True)
         time.sleep(1)
 
-
+def leer_consola():
+    while True:
+        try:
+            linea = input()
+        except EOFError:   #no hay teclado (por ejemplo, Docker sin -it): se deja de leer
+            return
+        if linea.strip():
+            ejecutar_orden(linea)
 
 def main ():
     global SERVIDOR_KAFKA, productor
@@ -426,7 +432,8 @@ def main ():
     threading.Thread(target=bucle_estado, daemon=True).start()
     log(f"Panel web en http://localhost:{puerto_web}")
     threading.Thread(target=panel_web.arrancar, args=(puerto_web, foto, ejecutar_orden, mensajes), daemon=True).start()
-
+    threading.Thread(target=leer_consola, daemon=True).start()
+    
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     servidor.bind(("0.0.0.0", puerto))

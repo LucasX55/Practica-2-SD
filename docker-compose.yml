@@ -27,6 +27,8 @@ services:
     build: .
     container_name: central
     restart: unless-stopped
+    stdin_open: true
+    tty: true
     depends_on:
       - broker
     ports:
