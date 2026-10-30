@@ -104,3 +104,4 @@ código que íbamos escribiendo, encontrara errores y propusiera correcciones, y
 
 ### 8. Documentación
 - Actualizar `PROTOCOLO.md` y `Readme.md`, y preparar el guion de la corrección.
+-Ayudar a comentar gran parte de central BD y web por su gran volumen de lineas (pricipalmente lineas auxiliares)
