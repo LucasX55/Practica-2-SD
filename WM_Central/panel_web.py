@@ -21,6 +21,7 @@ PAGINA = """<!doctype html>
 </head>
 <body>
 <h1>WM_Central</h1>
+<p id="aviso" style="color:#e53935; font-weight:bold"></p>
 <table>
   <thead><tr><th>ID</th><th>Ubicación</th><th>Estado</th><th>L/min</th><th>Litros</th><th>Operario</th></tr></thead>
   <tbody id="filas"></tbody>
@@ -34,8 +35,15 @@ PAGINA = """<!doctype html>
 const NOMBRES = {"DISPONIBLE": "Disponible (Available)", "REGANDO": "Regando (Watering)", "FUGA": "Fuga (Leak)",
                  "FUERA DE SERVICIO": "Out of Service", "DESCONECTADA": "Desconectada (Disconnected)"};
 async function refrescar() {
-  const respuesta = await fetch("estado");
-  const datos = await respuesta.json();
+  let datos;
+  try {
+    const respuesta = await fetch("estado");
+    datos = await respuesta.json();
+    document.getElementById("aviso").textContent = "";       // todo bien: quita el aviso
+  } catch (e) {
+    document.getElementById("aviso").textContent = "Imposible conectar con WM_Central";
+    return;                                                  // no pinta la tabla
+  }
   let html = "";
   for (const s of datos.estaciones) {
     let clase = s.estado;
