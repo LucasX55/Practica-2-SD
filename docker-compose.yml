@@ -1,45 +1,62 @@
+#########################################################################
+# Parte Cloud de WaterManagement: Kafka + WM_Central (con su BD SQLite)
+# Es lo que corre en la maquina de AWS. Se arranca con:
+#   sudo IP_KAFKA=<ip_publica> docker compose up -d --build
+# IP_KAFKA es la IP con la que los PCs del laboratorio llegan a Kafka
+#########################################################################
 services:
+
+  #########################################################################
+  # Kafka (el compose del profesor, sin mongo), en modo KRaft: no necesita zookeeper
+  # Tiene dos "puertas": una interna (broker:29092) para la central, que esta en
+  # la misma red de docker, y otra externa (IP_KAFKA:9092) para los PCs de fuera
+  #########################################################################
   broker:
-    image: apache/kafka:latest
-    hostname: broker
+    image: apache/kafka:latest #imagen oficial de kafka
+    hostname: broker #nombre con el que lo encuentra la central dentro de docker
     container_name: broker
-    restart: unless-stopped
+    restart: unless-stopped #si se cae o se reinicia la maquina, vuelve a arrancar solo
     ports:
-      - 9092:9092
+      - 9092:9092 #puerto de kafka abierto hacia fuera
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://${IP_KAFKA:-localhost}:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT #sin cifrado en las tres puertas
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://${IP_KAFKA:-localhost}:9092 #la direccion que kafka le dice a cada cliente que use; la de fuera es IP_KAFKA
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 #un solo broker: una sola copia de todo
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0 #los consumidores empiezan a leer sin esperar
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_PROCESS_ROLES: broker,controller #hace de broker y de controlador a la vez (KRaft)
       KAFKA_NODE_ID: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
-      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092 #donde escucha cada puerta
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
-      CLUSTER_ID: "gTBb85_WRXu6oQgq-brTQw"
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs #donde guarda los mensajes
+      CLUSTER_ID: "gTBb85_WRXu6oQgq-brTQw" #identificador fijo del cluster
 
+  #########################################################################
+  # WM_Central: se construye con el Dockerfile del repo
+  # La BD SQLite se guarda en un volumen, asi no se pierde aunque se borre o se
+  # reconstruya el contenedor (solo se borra con docker compose down -v)
+  #########################################################################
   central:
-    build: .
+    build: . #imagen hecha con nuestro Dockerfile
     container_name: central
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
+    restart: unless-stopped #vuelve sola si se reinicia la maquina; con docker stop se queda parada
+    stdin_open: true #deja la entrada abierta para escribir ordenes en la consola
+    tty: true #terminal: el panel de consola se pinta con colores (docker attach central)
     depends_on:
-      - broker
+      - broker #arranca despues de kafka
     ports:
       - 5050:5050   # sockets de los monitores
       - 8080:8080   # panel web
     environment:
-      KAFKA: broker:29092
-      PUERTO_SOCKETS: 5050
-      PORT: 8080
+      KAFKA: broker:29092 #la central llega a kafka por la puerta interna
+      PUERTO_SOCKETS: 5050 #puerto donde escucha a los monitores
+      PORT: 8080 #puerto del panel web
     volumes:
-      - datos-central:/data
+      - datos-central:/data #aqui esta el archivo de la BD
 
 volumes:
-  datos-central:
+  datos-central: #volumen de docker donde vive la BD
