@@ -374,8 +374,9 @@ def tabla_panel(lista, con_colores):
 
 
 def dibujar_panel(lista):
-   
-    salida = ["\033[2J\033[H" + "WM_Central · estaciones de riego (escribe una orden y pulsa Enter, o usa el panel web)", ""]    salida += tabla_panel(lista, True)
+
+    salida = ["\033[2J\033[H" + "WM_Central · estaciones de riego (escribe una orden y pulsa Enter, o usa el panel web)", ""]
+    salida += tabla_panel(lista, True)
     salida += ["", "Últimos mensajes:"] + mensajes
     print("\n".join(salida), flush=True)
 
