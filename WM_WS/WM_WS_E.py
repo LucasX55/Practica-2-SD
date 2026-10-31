@@ -1,3 +1,17 @@
+# ============================================================================
+# WM_WS_E.py  -  ENGINE de una estación de riego (WaterStation Engine)
+#
+# Simula la parte "física" de la estación: la válvula, el caudal y las fugas.
+#   - Con el MONITOR habla por sockets: el Monitor pregunta STATUS cada segundo
+#     y el Engine contesta OK o KO (fuga).
+#   - Con la CENTRAL habla por Kafka:
+#       * recibe órdenes (INICIAR / DETENER / DENEGADO) en el topic de órdenes de su estación
+#       * manda eventos y telemetría (ARRANQUE, INICIADO, TELEMETRIA, FINALIZADO)
+#       * si se pide un riego a mano con la tecla R, manda la petición al topic de peticiones
+#
+# Uso: python WM_WS_E.py <ip_kafka> <puerto_kafka> <ip_monitor> <puerto_monitor> <id_estacion> [caudal_l_min]
+# ============================================================================
+
 #Librerias
 import socket
 import sys
