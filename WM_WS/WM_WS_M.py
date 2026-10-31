@@ -1,3 +1,15 @@
+# ============================================================================
+# WM_WS_M.py  -  MONITOR de una estación de riego (WaterStation Monitor)
+#
+# Qué hace:
+#   - Hacia la CENTRAL (sockets): se registra, se autentica, manda un latido
+#     (PING) cada pocos segundos y le avisa de FUGA / RESUELTA.
+#   - Hacia el ENGINE (sockets): hace de servidor, le pregunta "STATUS" cada
+#     segundo y según conteste (OK / KO) o deje de contestar, avisa a la Central.
+#
+# Uso: python WM_WS_M.py <puerto_escolta> <ip_central> <puerto_central> <id_estacion> <ubicacion>
+# ============================================================================
+
 #Librerias
 import socket
 import sys
